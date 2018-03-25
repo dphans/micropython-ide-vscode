@@ -19,6 +19,10 @@
             {
                 "command": "extension.gettingStarted",
                 "title": "Micropython: Getting Started"
+            },
+            {
+                "command": "extension.projectRun",
+                "title": "Micropython: Run"
             }
         ]
     },

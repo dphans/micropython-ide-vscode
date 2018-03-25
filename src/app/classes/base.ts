@@ -1,5 +1,7 @@
 'use strict';
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
 
 
 export default class Base {
@@ -109,6 +111,12 @@ export default class Base {
     if (!Base._isOutputChannelShown) { return; }
     Base._outputChannel.hide();
     Base._isOutputChannelShown = false;
+  }
+
+  protected isMicropythonProject(documentPath: vscode.Uri) {
+    let projectPath = vscode.workspace.getWorkspaceFolder(documentPath);
+    if (!projectPath) { return false; }
+    return fs.existsSync(path.join(projectPath.uri.fsPath, Base.CONSTANTS.APP.CONFIG_FILE_NAME));
   }
 
   /**
