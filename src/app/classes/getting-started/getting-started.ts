@@ -73,18 +73,17 @@ export default class GettingStarted extends Base {
             try {
               fs.readdirSync('/dev/').forEach((portItem) => {
                 if (portItem.startsWith('tty.') && portItem.length >= 15) {
-                  serialPorts.push(portItem);
+                  serialPorts.push('/dev/' + portItem);
                 }
               });
             } catch (exception) {
               serialPorts = [];
               this.reportException(exception);
             } finally {
-              serialPorts.push('> Not in list above?');
               serialPorts.push('> Reload list');
             }
             selectedPort = await vscode.window.showQuickPick(serialPorts, {
-              placeHolder: "Please select port of connected device"
+              placeHolder: "Please select port of connected device."
             }) || '';
           }
           break;
@@ -99,7 +98,7 @@ export default class GettingStarted extends Base {
       let selectedBaudRate = parseInt(await vscode.window.showQuickPick([
         "300", "600", "1200", "2400", "4800", "9600", "14400", "19200", "28800", "38400", "57600", "115200", "128000", "256000"
       ], {
-        placeHolder: "Please select default baud rate"
+        placeHolder: "Please select default baud rate, default is 115200."
       }) || '115200') || 115200;
 
       // content of micropython config file
