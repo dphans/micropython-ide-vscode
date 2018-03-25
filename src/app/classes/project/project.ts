@@ -257,15 +257,35 @@ export default class Project extends Base {
         return;
       }
 
+      let projectRoot = vscode.workspace.getWorkspaceFolder(documentUri);
+      if (!projectRoot) {
+        vscode.window.showErrorMessage("Cannot find project directory!");
+        return;
+      }
+
       let uploadBaud = ((projectConfig || {}).upload || {}).baud || 115200;
       let documentPath = documentUri.fsPath.split(' ').join('\\ ');
 
       // kill current terminal process to skip busy port if available
       try { await this.terminalKillCurrentProcess(); } catch (e) { /* no such process */ }
 
+      let ampyCommandPrefix = ampyExecutePath + " --port " + uploadPort + " --baud " + uploadBaud + " ";
+
+      // split path components of current document, to create child path if needed
+      // create paths if needed
+      let pathComponents = documentUri.fsPath.replace(projectRoot.uri.fsPath, '').replace('/' + path.basename(documentUri.fsPath), '').split('/');
+      var pathComponentCurrent = "";
+      for (var pathIndex: number = 0; pathIndex < pathComponents.length; pathIndex++) {
+        if (pathComponents[pathIndex].length) {
+          pathComponentCurrent += "/" + pathComponents[pathIndex];
+          this.statusText("Creating directory `" + pathComponentCurrent + "`");
+          try { await Base.getTerminalHelper().execPromise(ampyCommandPrefix + "mkdir " + pathComponentCurrent); } catch (e) { /* directory already exist */ }
+        }
+      }
+
       // send current active document into device
       this.statusText("Sending file `" + path.basename(documentPath) + "`...");
-      await Base.getTerminalHelper().execPromise(ampyExecutePath + " --port " + uploadPort + " --baud " + uploadBaud + " put " + documentPath);
+      await Base.getTerminalHelper().execPromise(ampyCommandPrefix + "put " + documentPath + " " + pathComponentCurrent + "/" + path.basename(documentPath));
       this.statusDone();
       vscode.window.showInformationMessage("`" + path.basename(documentPath) + "` has been sent to device successfully!");
 
