@@ -155,7 +155,9 @@ export default class Project extends Base {
           try {
             let ampyPath = await Terminal.execPromise("which ampy");
             configFileObject.tools.ampy = (ampyPath as string || '').trim();
-          } catch (commandNotFoundException) {  }
+          } catch (commandNotFoundException) {
+            this.reportException(commandNotFoundException);
+          }
         }
       }
 

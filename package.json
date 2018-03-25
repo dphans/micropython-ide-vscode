@@ -3,6 +3,7 @@
     "displayName": "Micropython IDE",
     "description": "Micropython integrated development",
     "version": "0.0.1",
+    "icon": "images/icon.png",
     "publisher": "dphans",
     "engines": {
         "vscode": "^1.21.0"
