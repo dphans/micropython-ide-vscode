@@ -57,6 +57,15 @@ export default new class App extends Base {
     vscode.workspace.onDidCloseTextDocument((textDocument: vscode.TextDocument) => {
       this._toolbarRunProject.hide();
     });
+
+    // user switch between documents
+    vscode.window.onDidChangeActiveTextEditor((textEditor?: vscode.TextEditor) => {
+      if (!textEditor) {
+        this._toolbarRunProject.hide();
+        return;
+      }
+      this.showToolbarForActiveDocumentIfNeeded(textEditor.document.uri);
+    });
   }
 
   private showToolbarForActiveDocumentIfNeeded(documentUri: vscode.Uri) {
