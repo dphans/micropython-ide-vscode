@@ -1,9 +1,8 @@
 'use strict';
+import Base from '../base';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import Base from '../base';
-import Terminal from '../helpers/terminal-helper';
 
 
 export default class Project extends Base {
@@ -124,12 +123,12 @@ export default class Project extends Base {
         upload: { port: selectedPort, baud: selectedBaudRate },
         serial: { port: selectedPort, baud: selectedBaudRate },
         ignore: { extensions: [Base.CONSTANTS.APP.CONFIG_FILE_NAME], directories: [".vscode"] },
-        tools: { ampy: "" }
+        tools: { ampy: "", rshell: "" }
       };
 
       // check build tools
       try {
-        let ampyPath = await Terminal.execPromise("which ampy");
+        let ampyPath = await Base.getTerminalHelper().execPromise("which ampy");
         configFileObject.tools.ampy = (ampyPath as string || '').trim();
       } catch (commandNotFoundException) {
         this.reportException(commandNotFoundException);
@@ -144,7 +143,7 @@ export default class Project extends Base {
         ) === "Install") {
           try {
             this.statusText("Installing adafruit-ampy via pip...");
-            let installResult = await Terminal.execPromise("pip install adafruit-ampy");
+            let installResult = await Base.getTerminalHelper().execPromise("pip install adafruit-ampy");
             this.outputClear();
             this.outputPrintLn((installResult || '') as string);
             this.outputShown(true);
@@ -155,8 +154,43 @@ export default class Project extends Base {
             this.statusDone();
           }
           try {
-            let ampyPath = await Terminal.execPromise("which ampy");
+            let ampyPath = await Base.getTerminalHelper().execPromise("which ampy");
             configFileObject.tools.ampy = (ampyPath as string || '').trim();
+          } catch (commandNotFoundException) {
+            this.reportException(commandNotFoundException);
+          }
+        }
+      }
+
+      try {
+        let rshellPath = await Base.getTerminalHelper().execPromise("which rshell");
+        configFileObject.tools.rshell = (rshellPath as string || '').trim();
+      } catch (commandNotFoundException) {
+        this.reportException(commandNotFoundException);
+      }
+      
+      if (!configFileObject.tools.rshell || !configFileObject.tools.rshell.length || !fs.existsSync(configFileObject.tools.rshell)) {
+        if (await vscode.window.showInformationMessage(
+          "`rshell` command not found in your executable environment. Do you want to install `rshell` tool?",
+          { modal: false },
+          "No",
+          "Install"
+        ) === "Install") {
+          try {
+            this.statusText("Installing rshell via pip...");
+            let installResult = await Base.getTerminalHelper().execPromise("pip install rshell");
+            this.outputClear();
+            this.outputPrintLn((installResult || '') as string);
+            this.outputShown(true);
+          } catch (installRshellException) {
+            this.reportException(installRshellException);
+          } finally {
+            this.outputShown(false);
+            this.statusDone();
+          }
+          try {
+            let rshellPath = await Base.getTerminalHelper().execPromise("which rshell");
+            configFileObject.tools.ampy = (rshellPath as string || '').trim();
           } catch (commandNotFoundException) {
             this.reportException(commandNotFoundException);
           }
@@ -177,13 +211,85 @@ export default class Project extends Base {
   }
 
   /**
-   * check and push editing document into device
+   * check and push document into device
    * then run main.py script (restart device also)
    */
-  public async buildActiveDocumentThenRun() {
-    if (!(await Terminal.checkExecutableToolPromise("ampy", "pip install adafruit-ampy"))) {
+  public async buildDocumentThenRun() {
+    if (!vscode.window.activeTextEditor) {
+      vscode.window.showErrorMessage("No active editor can run in this time, please switch to your working file to run!");
+      return;
+    }
+
+    let documentUri = vscode.window.activeTextEditor.document.uri;
+
+    if (!(await Base.getTerminalHelper().checkExecutableToolPromise("ampy", "pip install adafruit-ampy"))) {
       vscode.window.showErrorMessage("Required tool not found (`ampy`). Please install `ampy` to run project.");
       return;
+    }
+
+    if (!(await Base.getTerminalHelper().checkExecutableToolPromise("rshell", "pip install rshell"))) {
+      vscode.window.showErrorMessage("Required tool not found (`rshell`). Please install `rshell` to run project.");
+      return;
+    }
+
+    try {
+      let projectConfig = this.getProjectConfig();
+      if (typeof projectConfig !== 'object') {
+        vscode.window.showErrorMessage("Error while reading settings from Micropython config file (`" + Base.CONSTANTS.APP.CONFIG_FILE_NAME + "`). Please recheck config file!");
+        return;
+      }
+
+      let ampyExecutePath = ((projectConfig || {}).tools || {}).ampy || '';
+      if (!ampyExecutePath || !ampyExecutePath.length) {
+        vscode.window.showErrorMessage("Error while reading `ampy` execuable path. Please recheck `tools.ampy` setting inside Micropython config file (`" + Base.CONSTANTS.APP.CONFIG_FILE_NAME + "`) then try again!");
+        return;
+      }
+
+      let rshellExecutePath = ((projectConfig || {}).tools || {}).rshell || '';
+      if (!rshellExecutePath || !rshellExecutePath.length) {
+        vscode.window.showErrorMessage("Error while reading `rshell` execuable path. Please recheck `tools.rshell` setting inside Micropython config file (`" + Base.CONSTANTS.APP.CONFIG_FILE_NAME + "`) then try again!");
+        return;
+      }
+
+      let uploadPort = ((projectConfig || {}).upload || {}).port || '';
+      if (!ampyExecutePath || !ampyExecutePath.length) {
+        vscode.window.showErrorMessage("Error while reading `port`. Please recheck `upload.port` setting inside Micropython config file (`" + Base.CONSTANTS.APP.CONFIG_FILE_NAME + "`) then try again!");
+        return;
+      }
+
+      let uploadBaud = ((projectConfig || {}).upload || {}).baud || 115200;
+      let documentPath = documentUri.fsPath.split(' ').join('\\ ');
+
+      // kill current terminal process to skip busy port if available
+      try { await this.terminalKillCurrentProcess(); } catch (e) { /* no such process */ }
+
+      // send current active document into device
+      this.statusText("Sending file `" + path.basename(documentPath) + "`...");
+      await Base.getTerminalHelper().execPromise(ampyExecutePath + " --port " + uploadPort + " --baud " + uploadBaud + " put " + documentPath);
+      this.statusDone();
+      vscode.window.showInformationMessage("`" + path.basename(documentPath) + "` has been sent to device successfully!");
+
+      // show terminal window in rshell mode
+      this.terminalWrite(rshellExecutePath + " --port " + uploadPort + " --baud " + uploadBaud + " repl");
+    } catch (executeException) {
+      this.log(executeException);
+    }
+  }
+
+  /**
+   * find micropython config file
+   * @returns content of config file as json object, or null if not available
+   */
+  public getProjectConfig() {
+    if (!vscode.workspace.rootPath) { return null; }
+    let configFilePath = path.join(vscode.workspace.rootPath, Base.CONSTANTS.APP.CONFIG_FILE_NAME);
+    if (!fs.existsSync(configFilePath)) { return null; }
+    try {
+      let configContent = fs.readFileSync(configFilePath);
+      return JSON.parse(configContent.toString());
+    } catch (fileReadException) {
+      this.reportException(fileReadException);
+      return null;
     }
   }
 

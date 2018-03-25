@@ -2,6 +2,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import Terminal from './helpers/terminal-helper';
 
 
 export default class Base {
@@ -11,6 +12,12 @@ export default class Base {
   private static _isStatusBarShown: boolean = false;
   private static _outputChannel: vscode.OutputChannel;
   private static _isOutputChannelShown: boolean = false;
+  private static _terminal?: vscode.Terminal;
+  private static _isTerminalShown: boolean = false;
+
+  public static getTerminalHelper() {
+    return Terminal;
+  }
 
   constructor() {
     this.onInitial();
@@ -49,6 +56,7 @@ export default class Base {
    * @param isShown true if need to show status bar
    */
   protected statusShown(isShown: boolean = false) {
+    if (!Base._statusBar) { return; }
     if (isShown) {
       if (Base._isStatusBarShown) { return; }
       Base._statusBar.show();
@@ -98,13 +106,71 @@ export default class Base {
   }
 
   /**
-   * Toggle status bar
-   * @param isShown true if need to show status bar
+   * Create Terminal window if not available
+   */
+  protected terminalInitIfNeeded() {
+    if (Base._terminal) { return; }
+    Base._terminal = vscode.window.createTerminal(Base.CONSTANTS.APP.UNIQUE_NAME);
+    Base._isTerminalShown = false;
+  }
+
+  /**
+   * Send command into Terminal window
+   * @param commandText command need to send to terminal
+   * @param newLine append new line command also, default is true
+   */
+  protected terminalWrite(commandText: string, newLine: boolean = true) {
+    this.terminalInitIfNeeded();
+    this.terminalShown(true);
+    if (Base._terminal) { Base._terminal.sendText(commandText, newLine); }
+  }
+
+  /**
+   * Show Terminal window
+   * @param isShown set to true if need display terminal, default is false
+   */
+  protected terminalShown(isShown: boolean = false) {
+    this.terminalInitIfNeeded();
+    if (isShown === Base._isTerminalShown) { return; }
+    if (!Base._terminal) { return; }
+    if (isShown) {
+      Base._terminal.show(false);
+    } else {
+      Base._terminal.hide();
+    }
+    Base._isTerminalShown = isShown;
+  }
+
+  /**
+   * Kill current running process on default terminal then reinit
+   */
+  protected async terminalKillCurrentProcess() {
+    let processId = await this.terminalGetProcessId();
+    if (!processId) { return; }
+    try { await Terminal.killProcessPromise(processId); } catch (e) { /* no such process */ }
+    try { Base._terminal!.dispose(); } catch (e) { /* terminal window killed */ }
+    Base._isTerminalShown = false;
+    Base._terminal = undefined;
+  }
+
+  /**
+   * Get current terminal process
+   */
+  protected async terminalGetProcessId() {
+    if (!Base._terminal) { return undefined; }
+    try {
+      return await Base._terminal.processId || undefined;
+    } catch (e) { return undefined; }
+  }
+
+  /**
+   * Toggle Output window
+   * @param isShown true if need to show Output window
    */
   protected outputShown(isShown: boolean = false) {
     if (isShown) {
       if (Base._isOutputChannelShown) { return; }
-      Base._outputChannel.show();
+      Base._outputChannel.show(false);
       Base._isOutputChannelShown = true;
       return;
     }
@@ -112,6 +178,8 @@ export default class Base {
     Base._outputChannel.hide();
     Base._isOutputChannelShown = false;
   }
+
+
 
   protected isMicropythonProject(documentPath: vscode.Uri) {
     let projectPath = vscode.workspace.getWorkspaceFolder(documentPath);

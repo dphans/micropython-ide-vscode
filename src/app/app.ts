@@ -24,7 +24,7 @@ export default new class App extends Base {
       this._projectManager.showMainMenu();
     }));
     context.subscriptions.push(vscode.commands.registerCommand(Base.CONSTANTS.COMMANDS.PROJECT_RUN, () => {
-      this._projectManager.buildActiveDocumentThenRun();
+      this._projectManager.buildDocumentThenRun();
     }));
     if (vscode.window.activeTextEditor) {
       this.showToolbarForActiveDocumentIfNeeded(vscode.window.activeTextEditor.document.uri);
