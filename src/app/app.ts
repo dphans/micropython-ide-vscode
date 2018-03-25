@@ -6,7 +6,7 @@ import ProjectManager from './classes/project/project';
 
 export default new class App extends Base {
 
-  private _projectManager: ProjectManager
+  private _projectManager: ProjectManager;
   private _toolbarRunProject: vscode.StatusBarItem;
 
   constructor() {

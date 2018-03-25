@@ -131,7 +131,9 @@ export default class Project extends Base {
       try {
         let ampyPath = await Terminal.execPromise("which ampy");
         configFileObject.tools.ampy = (ampyPath as string || '').trim();
-      } catch (commandNotFoundException) {  }
+      } catch (commandNotFoundException) {
+        this.reportException(commandNotFoundException);
+      }
       
       if (!configFileObject.tools.ampy || !configFileObject.tools.ampy.length || !fs.existsSync(configFileObject.tools.ampy)) {
         if (await vscode.window.showInformationMessage(
@@ -178,8 +180,11 @@ export default class Project extends Base {
    * check and push editing document into device
    * then run main.py script (restart device also)
    */
-  public buildActiveDocumentThenRun() {
-
+  public async buildActiveDocumentThenRun() {
+    if (!(await Terminal.checkExecutableToolPromise("ampy", "pip install adafruit-ampy"))) {
+      vscode.window.showErrorMessage("Required tool not found (`ampy`). Please install `ampy` to run project.");
+      return;
+    }
   }
 
 }
