@@ -403,7 +403,6 @@ export default class Project extends Base {
       let documentUri   = vscode.window.activeTextEditor.document.uri;
       let projectRoot   = vscode.workspace.getWorkspaceFolder(documentUri);
       if (!projectRoot) { throw new Error("Cannot find project directory!"); }
-      let documentPath  = documentUri.fsPath.split(' ').join('\\ ');
 
       // kill current terminal process to skip busy port if available
       this.outputPrintLn("Stopping running script if available...");
