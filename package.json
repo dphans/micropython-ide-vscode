@@ -19,11 +19,15 @@
         "commands": [
             {
                 "command": "extension.gettingStarted",
-                "title": "Micropython: Getting Started"
+                "title": "Micropython: Getting Started... (Manage projects,...)"
             },
             {
                 "command": "extension.projectRun",
-                "title": "Micropython: Run"
+                "title": "Micropython: Run... (Send current script to device then run main.py script)"
+            },
+            {
+                "command": "extension.projectStop",
+                "title": "Micropython: Stop...(Stop current running script in Terminal window)"
             }
         ]
     },

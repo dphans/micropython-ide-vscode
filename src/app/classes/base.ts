@@ -8,12 +8,24 @@ import Terminal from './helpers/terminal-helper';
 export default class Base {
 
   public static readonly CONSTANTS: any = require("../constants");
+
+  /* default Status */
   private static _statusBar: vscode.StatusBarItem;
   private static _isStatusBarShown: boolean = false;
+
+  /* default Output Window */
   private static _outputChannel: vscode.OutputChannel;
   private static _isOutputChannelShown: boolean = false;
+
+  /* default Terminal Window */
   private static _terminal?: vscode.Terminal;
   private static _isTerminalShown: boolean = false;
+
+  /* default Toolbar items */
+  private static _toolbarRunProject: vscode.StatusBarItem;
+  private static _isToolbarRunProjectShown: boolean = false;
+  private static _toolbarStopProject: vscode.StatusBarItem;
+  private static _isToolbarStopProjectShown: boolean = false;
 
   public static getTerminalHelper() {
     return Terminal;
@@ -30,6 +42,20 @@ export default class Base {
     }
     if (!Base._outputChannel) {
       Base._outputChannel = vscode.window.createOutputChannel(Base.CONSTANTS.APP.UNIQUE_NAME);
+    }
+    if (!Base._toolbarRunProject) {
+      Base._toolbarRunProject = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right);
+      Base._toolbarRunProject.text = "▶";
+      Base._toolbarRunProject.tooltip = Base.CONSTANTS.APP.UNIQUE_NAME + ": Build this file then run main.py script";
+      Base._toolbarRunProject.color = '#89D185';
+      Base._toolbarRunProject.command = Base.CONSTANTS.COMMANDS.PROJECT_RUN;
+    }
+    if (!Base._toolbarStopProject) {
+      Base._toolbarStopProject = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right);
+      Base._toolbarStopProject.text = "■";
+      Base._toolbarStopProject.tooltip = Base.CONSTANTS.APP.UNIQUE_NAME + ": Stop current running serial monitor";
+      Base._toolbarStopProject.color = '#F48771';
+      Base._toolbarStopProject.command = Base.CONSTANTS.COMMANDS.PROJECT_STOP;
     }
   }
 
@@ -49,6 +75,11 @@ export default class Base {
     Base._statusBar.text = Base.CONSTANTS.APP.UNIQUE_NAME + ": " + message;
     if (tooltipText.length) { Base._statusBar.tooltip = tooltipText; }
     this.statusShown(true);
+  }
+
+  protected statusWarning(isWarning: boolean = true) {
+    if (!Base._statusBar) { return; }
+    Base._statusBar.color = isWarning ? '#F48771' : '#FFFFFF';
   }
 
   /**
@@ -89,10 +120,11 @@ export default class Base {
    * Print into Output window with new line
    * @param message text need to log into output
    */
-  protected outputPrintLn(message: string) {
+  protected outputPrintLn(message: string, isAlsoUpdateStatus: boolean = false) {
     if (!Base._outputChannel) { return; }
     this.outputShown(true);
     Base._outputChannel.appendLine(message);
+    if (isAlsoUpdateStatus) { this.statusText(message); }
   }
 
   /**
@@ -144,13 +176,14 @@ export default class Base {
   /**
    * Kill current running process on default terminal then reinit
    */
-  protected async terminalKillCurrentProcess() {
+  public async terminalKillCurrentProcess() {
     let processId = await this.terminalGetProcessId();
     if (!processId) { return; }
     try { await Terminal.killProcessPromise(processId); } catch (e) { /* no such process */ }
     try { Base._terminal!.dispose(); } catch (e) { /* terminal window killed */ }
     Base._isTerminalShown = false;
     Base._terminal = undefined;
+    this.toolbarStopShown(false);
   }
 
   /**
@@ -179,8 +212,32 @@ export default class Base {
     Base._isOutputChannelShown = false;
   }
 
+  /**
+   * Toogle toolbar RUN
+   * @param isShown set to true if need to show Run item
+   */
+  protected toolbarRunShown(isShown: boolean = false) {
+    if (isShown === Base._isToolbarRunProjectShown) { return; }
+    if (isShown) { Base._toolbarRunProject.show(); }
+    else { Base._toolbarRunProject.hide(); }
+    Base._isToolbarRunProjectShown = isShown;
+  }
 
+  /**
+   * Toogle toolbar STOP
+   * @param isShown set to true if need to show Stop item
+   */
+  protected toolbarStopShown(isShown: boolean = false) {
+    if (isShown === Base._isToolbarStopProjectShown) { return; }
+    if (isShown) { Base._toolbarStopProject.show(); }
+    else { Base._toolbarStopProject.hide(); }
+    Base._isToolbarStopProjectShown = isShown;
+  }
 
+  /**
+   * Check if current document is in Micropython project
+   * @param documentPath path of document included inside project need to check
+   */
   protected isMicropythonProject(documentPath: vscode.Uri) {
     let projectPath = vscode.workspace.getWorkspaceFolder(documentPath);
     if (!projectPath) { return false; }
