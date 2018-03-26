@@ -42,6 +42,26 @@ or:
 sudo pip install rshell
 ```
 
+## How to use
+
+
+### Create new project:
+First, you need to generate new project by open **Getting Started** menu.
+
+To open **Getting Started...** menu, you can press shortcut **⌘ + ⇧ + P** keys, then find from commands list with keyword: `Micropython: Gettings Started`.
+
+You can integrate with existing project by creating `.micropythonrc` file into your project root directory. This file stores build and debug settings for your project.
+
+
+### Run project:
+You can run project by move to script file from prject directory. From VSCode status bar, press ▶ button in the bottom right. Or using `Run` command from commands list.
+
+### Stop running script:
+To stop running script, you can stop by press ◼ button in the bottom right. Or using `Stop` command from commands list.
+
+### To Flash Micropython firmware
+From **Getting Started** menu, select **Flash Firmware** then follow the step-by-step instructions.
+
 
 ## Extension Settings
 
