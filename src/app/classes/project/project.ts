@@ -425,31 +425,22 @@ export default class Project extends Base {
       }
 
       this.outputPrintLn("Searching for ignored files and directories...");
-      let projectFiles  = this.helperGetDirectories(projectRoot.uri.fsPath);
-      var resultFiles: string[] = [];
-      for (var fileIndex = 0; fileIndex < projectFiles.length; fileIndex++) {
-        let filePath    = projectFiles[fileIndex];
-        var isIgnored   = false;
+      let resultFiles = this.listFiles(projectRoot.uri.fsPath, [], (filePath: string): boolean => {
         if (fs.statSync(filePath).isFile()) {
           for (var ignoredExtIndex = 0; ignoredExtIndex < ignoredExts.length; ignoredExtIndex++) {
             if (filePath.endsWith(ignoredExts[ignoredExtIndex])) {
-              isIgnored  = true;
-              break;
+              return true;
             }
           }
         } else {
-          this.outputPrintLn("Checking directory " + filePath);
           for (var ignoredDirIndex = 0; ignoredDirIndex < ignoredDirs.length; ignoredDirIndex++) {
             if (path.basename(filePath) === ignoredDirs[ignoredDirIndex]) {
-              isIgnored  = true;
-              break;
+              return true;
             }
           }
         }
-        if (!isIgnored) {
-          resultFiles.push(filePath);
-        }
-      }
+        return false;
+      });
 
       this.statusText("[Run] Sending files...");
       for (var resultFileIndex = 0; resultFileIndex < resultFiles.length; resultFileIndex++) {
@@ -489,6 +480,20 @@ export default class Project extends Base {
       this.statusWarning(false);
       this.statusDone();
     }
+  }
+
+  private listFiles(fsPath: string, results: string[] = [], ignore: (fsPath: string) => boolean): string[] {
+    if (!fsPath) { return results; }
+    fs.readdirSync(fsPath).forEach((itemPath) => {
+      let fullPath = path.join(fsPath, itemPath);
+      if (!ignore(fullPath)) {
+        results.push(fullPath);
+        if (fs.statSync(fullPath).isDirectory()) {
+          results = this.listFiles(fullPath, results, ignore);
+        }
+      }
+    });
+    return results;
   }
 
   public helperGetDirectories(fsPath: string, results: string[] = []) {
