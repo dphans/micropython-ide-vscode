@@ -1,3 +1,9 @@
+```
+# Unfortunately, this project will be temporary stop developing from August 1st, 2018 to May 1st, 2019.
+# Problems will be solved after that, included: issues, reports, new features (improve performance, UI,...).
+# I'm sorry for that.
+```
+
 # Micropython IDE for VSCode README
 
 Micropython integrated development for VSCode
