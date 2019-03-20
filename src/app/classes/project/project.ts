@@ -3,7 +3,10 @@ import Base from '../base';
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as _ from 'lodash';
 
+// Escape path spaces for REPL: /my awesome/file/path => '/my\\ awesome/file/path'
+const normalizePath = (path: string = ''): string => path.replace(/(\s+)/g, '\\$1');
 
 export default class Project extends Base {
 
@@ -76,6 +79,7 @@ export default class Project extends Base {
       }
 
       let workingFolder = path.join(selectedFolder[0].fsPath, projectName);
+      let projectFolder = path.join(workingFolder, projectName);
       let configFile    = path.join(workingFolder, Base.CONSTANTS.APP.CONFIG_FILE_NAME);
 
       // find connected ports
@@ -141,7 +145,10 @@ export default class Project extends Base {
       let configFileObject = {
         upload: { port: selectedPort, baud: selectedBaudRate },
         serial: { port: selectedPort, baud: selectedBaudRate },
-        ignore: { extensions: [Base.CONSTANTS.APP.CONFIG_FILE_NAME], directories: [".vscode"] },
+        paths: {
+          root: `./${projectName}`,
+          ignore: { extensions: [], directories: [] },
+        },
         tools: { ampy: "", rshell: "" }
       };
 
@@ -217,8 +224,9 @@ export default class Project extends Base {
       }
 
       fs.mkdirSync(workingFolder);
-      fs.writeFileSync(path.join(workingFolder, "boot.py"), "# This is script that run when device boot up or wake from sleep.\n\n\n");
-      fs.writeFileSync(path.join(workingFolder, "main.py"), "# This is your main script.\n\n\nprint(\"Hello, world!\")\n");
+      fs.mkdirSync(projectFolder);
+      fs.writeFileSync(path.join(projectFolder, "boot.py"), "# This is script that run when device boot up or wake from sleep.\n\n\n");
+      fs.writeFileSync(path.join(projectFolder, "main.py"), "# This is your main script.\n\n\nprint(\"Hello, world!\")\n");
       fs.writeFileSync(configFile, JSON.stringify(configFileObject, null, 2));
       await vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.parse(workingFolder));
     } catch (exception) {
@@ -397,12 +405,16 @@ export default class Project extends Base {
       this.outputPrintLn("Using baud rate: " + uploadBaud);
       this.outputPrintLn("Using port: " + uploadPort);
 
-      let ignoredExts = ((projectConfig || {}).ignore || {}).extensions || [];
-      let ignoredDirs = ((projectConfig || {}).ignore || {}).directories || [];
+      let ignoredExts = _.get(projectConfig, 'paths.ignore.extensions', []);
+      let ignoredDirs = _.get(projectConfig, 'paths.ignore.directories', []);
+      let rootPath = _.get(projectConfig, 'paths.root', './');
 
       let documentUri   = vscode.window.activeTextEditor.document.uri;
       let projectRoot   = vscode.workspace.getWorkspaceFolder(documentUri);
       if (!projectRoot) { throw new Error("Cannot find project directory!"); }
+      let projectRootPath = projectRoot.uri.fsPath;
+      let projectFilesPath = path.join(projectRootPath, rootPath);
+
 
       // kill current terminal process to skip busy port if available
       this.outputPrintLn("Stopping running script if available...");
@@ -419,44 +431,39 @@ export default class Project extends Base {
         let fileDirPath = ampyLsResult[fileDirIndex];
         if (fileDirPath.length) {
           this.outputPrintLn("Removing " + fileDirPath + "...");
-          try { await Base.getTerminalHelper().execPromise(ampyCommandPrefix + "rmdir " + fileDirPath); } catch (e) { /* may be item is file */ }
-          try { await Base.getTerminalHelper().execPromise(ampyCommandPrefix + "rm " + fileDirPath); } catch (e) { /* may be item is path */ }
+          try { await Base.getTerminalHelper().execPromise(ampyCommandPrefix + "rmdir " + normalizePath(fileDirPath)); } catch (e) { /* may be item is file */ }
+          try { await Base.getTerminalHelper().execPromise(ampyCommandPrefix + "rm " + normalizePath(fileDirPath)); } catch (e) { /* may be item is path */ }
         }
       }
 
-      this.outputPrintLn("Searching for ignored files and directories...");
-      let resultFiles = this.listFiles(projectRoot.uri.fsPath, [], (filePath: string): boolean => {
+      this.outputPrintLn('Searching for ignored files and directories...');
+      const resultFiles = this.listFiles(projectFilesPath, [], (filePath: string): boolean => {
         if (fs.statSync(filePath).isFile()) {
-          for (var ignoredExtIndex = 0; ignoredExtIndex < ignoredExts.length; ignoredExtIndex++) {
-            if (filePath.endsWith(ignoredExts[ignoredExtIndex])) {
-              return true;
-            }
-          }
-        } else {
-          for (var ignoredDirIndex = 0; ignoredDirIndex < ignoredDirs.length; ignoredDirIndex++) {
-            if (path.basename(filePath) === ignoredDirs[ignoredDirIndex]) {
-              return true;
-            }
-          }
+          return ignoredExts.includes(path.extname(filePath));
         }
-        return false;
+
+        return ignoredDirs.includes(path.basename(filePath));
       });
 
-      this.statusText("[Run] Sending files...");
-      for (var resultFileIndex = 0; resultFileIndex < resultFiles.length; resultFileIndex++) {
-        let fileOrDirectoryPath = resultFiles[resultFileIndex];
-        let workingPath         = fileOrDirectoryPath.replace(projectRoot.uri.fsPath, '').replace(projectRoot.uri.fsPath, '').split(' ').join('\\ ');
+      this.statusText('[Run] Sending files...');
+      for (const currentPath of resultFiles) {
+        const localPath = path.relative(projectRootPath, currentPath);
+        const devicePath = path.relative(projectFilesPath, currentPath);
+        let command: string;
+
+        if (fs.statSync(currentPath).isFile()) {
+          command = `${ampyCommandPrefix}put ./${normalizePath(localPath)} ${normalizePath(devicePath)}`;
+          this.outputPrintLn(`Sending ${devicePath}...`);
+        } else {
+          command = `${ampyCommandPrefix}mkdir ${normalizePath(devicePath)}`;
+          this.outputPrintLn(`Creating directory ${devicePath}...`);
+        }
+
         try {
-          if (fs.statSync(fileOrDirectoryPath).isFile()) {
-            let createFileCommand = ampyCommandPrefix + "put ." + workingPath + " " + workingPath;
-            this.outputPrintLn("Sending " + workingPath + "...");
-            await Base.getTerminalHelper().execPromise(createFileCommand);
-          } else {
-            let createDirCommand  = ampyCommandPrefix + "mkdir " + workingPath;
-            this.outputPrintLn("Creating directory " + workingPath + "...");
-            await Base.getTerminalHelper().execPromise(createDirCommand);
-          }
-        } catch (e) { /* push file inside ignored directory */ }
+          await Base.getTerminalHelper().execPromise(command);
+        } catch (err) {
+          /* push file inside ignored directory */
+        }
       }
 
       // show terminal window in rshell mode
