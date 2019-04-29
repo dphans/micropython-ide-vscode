@@ -58,6 +58,37 @@ To open **Getting Started...** menu, you can press shortcut **⌘ + ⇧ + P** ke
 
 You can integrate with existing project by creating `.micropythonrc` file into your project root directory. This file stores build and debug settings for your project.
 
+Example `.micropythonrc` file:
+
+```json
+{
+  "upload": {
+    "port": "/serial/port",
+    "baud": 115200
+  },
+  "serial": {
+    "port": "/serial/port",
+    "baud": 115200
+  },
+  "paths": {
+    "root": "./myproject",
+    "ignore": {
+      "extensions": [
+        ".md"
+      ],
+      "directories": [
+        ".git",
+      ]
+    }
+  },
+  "tools": {
+    "ampy": "/path/to/ampy",
+    "rshell": "/path/to/rshell"
+  }
+}
+```
+
+`paths.root` - path with a python files for upload.
 
 ### Run project:
 You can run project by move to script file from prject directory. From VSCode status bar, press ▶ button in the bottom right. Or using `Run` command from commands list.
