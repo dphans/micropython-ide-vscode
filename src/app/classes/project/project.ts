@@ -84,7 +84,10 @@ export default class Project extends Base {
 
       // find connected ports
       var selectedPort: string = '';
-      switch (this.getUserPlatform()) {
+      var x = this.getUserPlatform();
+      vscode.window.setStatusBarMessage('USERPLATFORM:' + x);
+      var serialPorts: string[] = [];
+      switch (x) {
         case 'win32':
           selectedPort = await vscode.window.showInputBox({
             ignoreFocusOut: true,
@@ -92,10 +95,39 @@ export default class Project extends Base {
             prompt: "Current, we are not support auto detect devices connected for Windows. You need to enter port manually."
           }) || '';
           break;
-        default:
+        case 'linux':
+          serialPorts = [];
           selectedPort = '> Reload list';
           while (selectedPort === '> Reload list') {
-            var serialPorts: string[] = [];
+            try {
+              fs.readdirSync('/dev/').forEach((portItem) => {
+                if (portItem.startsWith('tty') ) { //  && portItem.length >= 15) {
+                  serialPorts.push('/dev/' + portItem);
+                }
+              });
+            } catch (exception) {
+              serialPorts = [];
+              this.reportException(exception);
+            } finally {
+              serialPorts.push('> Reload list');
+              serialPorts.push('> Not Listed Above?');
+            }
+            selectedPort = await vscode.window.showQuickPick(serialPorts, {
+              ignoreFocusOut: true,
+              placeHolder: "Please select port of connected device."
+            }) || '';
+          }
+          if (selectedPort === "> Not listed above?") {
+            selectedPort = await vscode.window.showInputBox({
+              ignoreFocusOut: true,
+              prompt: "Please enter port manually."
+            }) || '';
+          }
+          break;
+        default:
+            serialPorts = [];
+            selectedPort = '> Reload list';
+          while (selectedPort === '> Reload list') {
             try {
               fs.readdirSync('/dev/').forEach((portItem) => {
                 if (portItem.startsWith('tty.') && portItem.length >= 15) {
