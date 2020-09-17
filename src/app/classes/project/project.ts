@@ -161,7 +161,7 @@ export default class Project extends Base {
       }
 
       if (!fs.existsSync(selectedPort)) {
-        vscode.window.showErrorMessage("Port not exist, please connect device and try again!");
+        vscode.window.showErrorMessage("Port does not exist, please connect device and try again!");
         this.statusDone();
         return;
       }
@@ -339,7 +339,7 @@ export default class Project extends Base {
       if (!selectedPort || !selectedPort.length) { return; }
 
       if (!fs.existsSync(selectedPort)) {
-        vscode.window.showErrorMessage("Port not exist, please connect device and try again!");
+        vscode.window.showErrorMessage("Port does not exist, please connect device and try again!");
         return;
       }
 
