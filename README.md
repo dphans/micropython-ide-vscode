@@ -1,8 +1,12 @@
-```
-# Unfortunately, this project will be temporary stop developing from August 1st, 2018 to May 1st, 2019.
-# Problems will be solved after that, included: issues, reports, new features (improve performance, UI,...).
-# I'm sorry for that.
-```
+## Unfortunately, this extension has been terminated.
+
+My developer account cannot connect to extensions store. So I cannot update latest changes into vscode extensions.
+
+Sorry @trevormerritt for adding support for Linux.
+Sorry @rainum for adding settings to set a root path for project files.
+I'm sorry @osechet for improve directories ignore, and @oplik0 fix messages issues.
+**Don't know what to say, I sincerely apologize to the contributors to the project.**
+
 
 # Micropython IDE for VSCode README
 
