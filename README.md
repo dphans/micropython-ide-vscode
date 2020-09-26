@@ -1,12 +1,11 @@
 ## Unfortunately, this extension has been terminated.
 
+```
 My developer account cannot connect to extensions store. So I cannot update latest changes into vscode extensions.
-
 Sorry @trevormerritt for adding support for Linux.
-
 Sorry @rainum for adding settings to set a root path for project files.
-
 I'm sorry @osechet for improve directories ignore, and @oplik0 fix messages issues.
+```
 
 **Don't know what to say, I sincerely apologize to the contributors to the project.**
 
